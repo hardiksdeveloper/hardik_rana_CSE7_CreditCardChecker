@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Credit Card Validator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background: #121212;
+            color: #00ff00;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .container {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 30px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+            text-align: center;
+            z-index: 10;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 16px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            border: 2px solid #333;
+            color: #00ff00;
+            background: #121212;
+            text-align: center;
+            transition: all 0.3s ease-in-out;
+            letter-spacing: 1px;
+        }
+
+        input:focus, button:focus {
+            outline: none;
+            border: 2px solid #00ff00;
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s ease;
+        }
+
+        button:hover {
+            background: #00ff00;
+            color: #121212;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        /* Custom "Card is Valid" message */
+        .valid {
+            font-size: 2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #00ff00;
+            margin-top: 20px;
+            opacity: 0;
+            animation: fadeInMessage 1s forwards;
+        }
+
+        @keyframes fadeInMessage {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .invalid {
+            font-size: 1.4rem;
+            margin-top: 20px;
+            letter-spacing: 2px;
+            color: #ff4d4d;
+            font-weight: bold;
+        }
+
+        /* Updated Card Details Section */
+        .card-info {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #232323, #161616); /* Dark gradient for depth */
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); /* Soft cyan glow */
+            display: none;
+            animation: slideIn 0.5s ease-out forwards;
+            border: 2px solid #00ff00; /* Cold green border */
+        }
+
+        @keyframes slideIn {
+            0% {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .card-info h3 {
+            font-size: 1.6rem;
+            color: #00ff00;
+        }
+
+        .card-info p {
+            font-size: 1rem;
+        }
+
+        .analytics {
+            margin-top: 30px;
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+            letter-spacing: 1px;
+        }
+
+        .analytics span {
+            font-weight: bold;
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading" id="loading">Loading...</div>
+
+    <div class="container">
+        <h2>Credit Card Validator</h2>
+        
+        <form id="card-form">
+            <input type="text" id="card-number" placeholder="Enter Card Number" required maxlength="19">
+            <button type="submit">Validate Card</button>
+        </form>
+
+        <div id="validation-result"></div>
+        <div id="card-details" class="card-info">
+            <h3 id="card-brand"></h3>
+            <p id="card-number-display"></p>
+            <p id="card-country"></p>
+            <p id="card-prepaid"></p>
+        </div>
+
+        <div class="analytics">
+            <p>Total Transactions: <span id="total-transactions">0</span></p>
+            <p>Valid Transactions: <span id="valid-transactions">0</span></p>
+            <p>Invalid Transactions: <span id="invalid-transactions">0</span></p>
+        </div>
+    </div>
+
+<script>
+    let totalTransactions = 0;
+    let validTransactions = 0;
+    let invalidTransactions = 0;
+
+    // Simulate loading delay
+    setTimeout(function() {
+        document.getElementById('loading').style.opacity = '0';
+        document.querySelector('.container').style.opacity = '1';
+    }, 2000);
+
+    document.getElementById('card-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        let cardNumber = document.getElementById('card-number').value.replace(/\D/g, '');
+        let validationResult = document.getElementById('validation-result');
+        let cardDetails = document.getElementById('card-details');
+
+        if (!validateCard(cardNumber)) {
+            validationResult.innerHTML = `<span class="invalid">Invalid Card Details</span>`;
+            cardDetails.style.display = 'none';
+            invalidTransactions++;
+        } else {
+            validationResult.innerHTML = `<span class="valid">Card is Valid</span>`;
+            validTransactions++;
+            fetchCardDetails(cardNumber);
+        }
+
+        totalTransactions++;
+        updateAnalytics();
+    });
+
+    function validateCard(cardNumber) {
+        let sum = 0;
+        let shouldDouble = false;
+
+        for (let i = cardNumber.length - 1; i >= 0; i--) {
+            let digit = parseInt(cardNumber.charAt(i));
+
+            if (shouldDouble) {
+                digit *= 2;
+                if (digit > 9) digit -= 9;
+            }
+
+            sum += digit;
+            shouldDouble = !shouldDouble;
+        }
+
+        return sum % 10 === 0;
+    }
+
+    function fetchCardDetails(cardNumber) {
+        let cardDetails = document.getElementById('card-details');
+        let cardBrand = document.getElementById('card-brand');
+        let cardNumberDisplay = document.getElementById('card-number-display');
+        let cardCountry = document.getElementById('card-country');
+        let cardPrepaid = document.getElementById('card-prepaid');
+
+        let cardInfo = getCardInfo(cardNumber);
+
+        cardBrand.innerText = cardInfo.brand;
+        cardNumberDisplay.innerText = formatCardNumber(cardNumber);
+        cardCountry.innerText = `Country: ${cardInfo.country}`;
+        cardPrepaid.innerText = cardInfo.prepaid ? 'Prepaid: Yes' : 'Prepaid: No';
+
+        cardDetails.style.display = 'block';
+    }
+
+    function getCardInfo(cardNumber) {
+        let firstDigit = cardNumber.charAt(0);
+        let brand = "Unknown";
+        let country = "United States"; 
+        let prepaid = false;
+
+        if (firstDigit === "4") brand = "VISA";
+        else if (firstDigit === "5") brand = "MasterCard";
+        else if (firstDigit === "3") brand = "American Express";
+        else if (firstDigit === "6") brand = "Discover";
+
+        if (cardNumber.endsWith("5")) prepaid = true;
+
+        return { brand, country, prepaid };
+    }
+
+    function updateAnalytics() {
+        document.getElementById('total-transactions').textContent = totalTransactions;
+        document.getElementById('valid-transactions').textContent = validTransactions;
+        document.getElementById('invalid-transactions').textContent = invalidTransactions;
+    }
+
+    function formatCardNumber(cardNumber) {
+        return cardNumber.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    }
+</script>
+
+</body>
+</html>
